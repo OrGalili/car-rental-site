@@ -1,0 +1,107 @@
+﻿@{
+    ViewBag.Title = "סגירת השכרת רכב";
+}
+
+<style>
+    .template {
+        display:none;
+    }
+</style>
+
+
+@section scripts{
+    <script>
+        var carRentalObjectKey = 'carRentalObj';
+
+        //Inserting a car rental row in the page.
+        function insertCarRentalRow(carRental) {
+            var carRentTr = $('.template').clone(true).removeClass('template').addClass('row').data(carRentalObjectKey, carRental);
+            for (var propName in carRental) {
+                if (propName == "User")
+                    carRentTr.find('[data-prop ="' + propName + '"]').text(carRental[propName].Username);
+                else if (propName == "Id") {
+                    carRentTr.find('[data-prop ="Id"]').text(carRental.Id);
+                }
+                else if (propName == "StartDate" || propName == "ReturnDate" || propName == "ActualReturnDate") {
+                    var date = carRental[propName];
+                    var subStringDate = date.substring(6);
+                    var parseIntDate = parseInt(subStringDate);
+                    date = new Date(parseIntDate);
+                    date = date.toJSON().substring(0, 10);
+                    carRentTr.data(carRentalObjectKey)[propName] = date;
+                    carRentTr.find('[data-prop ="' + propName + '"]').text(date);
+                }
+            }
+            carRentTr.insertAfter(".template");
+        }
+
+        $(function () {
+
+            //When search button clicked, it will be checked if the car number ligal and if he exist in the Db.
+            //if yes he will get all the rentals of the car.
+            $('#searchButton').click(function () {
+                $('.row').remove();
+                if ($("#carNumber").val() < 1000000 || $("#carNumber").val() > 9999999) {
+                    $('table').addClass('hidden');
+                    $('#message').text('מספר רכב אינו חוקי');
+                }
+                else {
+                    //Bring Rentals of a specific car.
+                    $.post("@Url.Action("GetCarRentals")", { carNumber: $("#carNumber").val() }, function (resp) {
+                        if (resp.success) {
+                            $('table').removeClass('hidden');
+                            $("#message").text("השכרות של רכב מספר " + $("#carNumber").val());
+                            for (var i = 0; i < resp.carRentals.length; i++) {
+                                insertCarRentalRow(resp.carRentals[i]);
+                            }
+                        }
+                        else {
+                            $('table').addClass('hidden');
+                            $("#message").text(resp.error);
+                        }
+                    });
+                }
+            });
+
+            //Closing a chosen rent, deleting it from the Db and showing on page the cost of the rent.
+            $('.closeRent').click(function () {
+                var buttonTd = $(this).parent();
+                //Changing the actual return date of a rent with the matched id. 
+                $.post("@Url.Action("ChangeActualReturnDate")", { id: $(this).parents('tr').data(carRentalObjectKey).Id}, function (resp) {
+                    if (resp.success) {
+                        buttonTd.find('button').remove();
+                        $("<span></span>").text("סך הכל לתשלום: " + resp.paymentCost).appendTo(buttonTd);
+                    }
+                });
+            });
+        });
+    </script>
+}
+
+<h2>@ViewBag.Title</h2>
+
+<div>
+    <p>מספר רכב:</p>
+    <p><input id="carNumber" /><button id="searchButton" type="button">חפש</button></p>
+    <p id="message"></p>
+</div>
+
+<table class="table hidden">
+    <thead>
+        <tr>
+            <th>מספר השכרה במערכת</th>
+            <th>שם משתמש</th>
+            <th>תאריך התחלה</th>
+            <th>תאריך החזרה</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="template">
+            <td><span data-prop="Id"></span></td>
+            <td><span data-prop="User"></span></td>
+            <td><span data-prop="StartDate"></span></td>
+            <td><span data-prop="ReturnDate"></span></td>
+            <td><button class="closeRent" type="button">סגור השכרה</button></td>
+        </tr>
+    </tbody>
+</table>

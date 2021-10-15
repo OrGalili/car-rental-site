@@ -1,0 +1,304 @@
+﻿@{
+    ViewBag.Title = "ניהול מכוניות";
+}
+
+<style>
+    .template {
+        display: none;
+    }
+
+    .file-wrapper {
+        cursor: pointer;
+        display: inline-block;
+        overflow: hidden;
+        position: relative;
+        width : inherit;
+        height : inherit;
+    }
+
+        .file-wrapper .button {
+            background: #0094ff;
+            -moz-border-radius: 5px;
+            -webkit-border-radius: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 4px 18px;
+            text-transform: uppercase;
+        }
+
+        .file-wrapper input {
+            cursor: pointer;
+            height: 100%;
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .file-wrapper input {
+            filter: alpha(opacity=1);
+            -moz-opacity: 0.01;
+            opacity: 0.01;
+        }
+
+        .file-wrapper input {
+            font-size: 100px;
+        }
+</style>
+
+@section scripts{
+    <script>
+        var carObjectKey = 'carObj';
+        var Manufacturers = [];
+        var Models = [];
+        var BranchNames = [];
+
+        //clear the data values and the value of the elements of the row.
+        function clearNewCarRow() {
+            $('.new-car').data(carObjectKey, {
+                CurrentMileage: null, RightToRent: true,
+                CarNumber: null, CostOfDayDelay: null, /*Image: null*/
+                Manufacturer: Manufacturers[0], Model: Models[0], BranchName: BranchNames[0]
+            }).find('input').val('').find('select').val(0);
+        }
+
+        //Inserting a car row in the page with the image of the car.
+        function insertCarRow(car) {
+            //bring the model names of the car according his manufactor name.
+            $.get("/lookup/models/" + car.Manufacturer, function (resp) {
+                var carTr = $('.template').clone(true).removeClass('template').data(carObjectKey, car);
+                carTr.find('[data-prop = Image]').load('/Admin/GetImageForCar/' + car.Id);
+                Models = resp;
+                var modelsSelect = carTr.find('[data-prop = "Model"]');
+                for (var i = 0; i < Models.length; i++) {
+                    $('<option></option>').text(Models[i]).appendTo(modelsSelect);
+                }
+                for (var propName in car) {
+                    if (propName == "Id")
+                        carTr.find('[data-prop ="' + propName + '"]').text(car.Id);
+                    else if (propName == "RightToRent") {
+                        carTr.find('[data-prop ="' + propName + '"]').val(car[propName].toString());
+                    }
+                    else
+                        carTr.find('[data-prop ="' + propName + '"]').val(car[propName]);
+                }
+                carTr.insertBefore('.template');
+            });
+        }
+
+        //Inserting branch names in a combo box
+        function addBranchNamesComboBoxDataTo(rowClassName) {
+            var branchesSelect = $(rowClassName).find('[data-prop="BranchName"]');
+            for (i = 0; i < BranchNames.length; i++) {
+                $('<option></option>').text(BranchNames[i]).appendTo(branchesSelect);
+            }
+        }
+
+        //Inserting manufactor names in a combo box.
+        function addManufacturersComboBoxDataTo(rowClassName) {
+            var manufacturersSelect = $(rowClassName).find('[data-prop="Manufacturer"]');
+            for (i = 0; i < Manufacturers.length; i++) {
+                $('<option></option>').text(Manufacturers[i]).appendTo(manufacturersSelect);
+            }
+        }
+
+        //Inserting model names in a combo box.
+        function addModelsComboBoxDataTo(rowClassName) {
+            var modelsSelect = $(rowClassName).find('[data-prop="Model"]');
+            for (var i = 0; i < Models.length; i++) {
+                $('<option></option>').text(Models[i]).appendTo(modelsSelect);
+            }
+        }
+
+        //Bring the manaufactor names.
+        $.get("/lookup/types", function (resp) {
+            Manufacturers = resp;
+            //Bring the Branch names.
+            $.get("/lookup/branchNames", function (resp) {
+                BranchNames = resp;
+                //Bring the model names that in the first manufactor name.
+                $.get("/lookup/models/" + Manufacturers[0], function (resp) {
+                    Models = resp;
+                    activate();
+                });
+            });
+        });
+
+        //After doing ajax Activating the functions above.
+        function activate() {
+            addManufacturersComboBoxDataTo('.new-car');
+            addModelsComboBoxDataTo('.new-car');
+            addBranchNamesComboBoxDataTo('.new-car');
+            addManufacturersComboBoxDataTo('.template');
+            addBranchNamesComboBoxDataTo('.template');
+
+            clearNewCarRow();
+            //Bring all cars that in Db.
+            $.get('@Url.Action("GetCars","CRUDCars")', function (resp) {
+                for (var i = resp.length - 1; i >= 0; i--) {
+                    insertCarRow(resp[i]);
+                }
+            });
+        }
+
+        $(function () {
+
+            //when there is a change in an input or select element, 
+            //the data field in the same row that related to the element wil be changed.
+            $('input,select').change(function () {
+                $(this).parents('tr').data(carObjectKey)[$(this).data('prop')] = $(this).val();
+            });
+            
+            //when a select of manufactor will be changed , the model in the same row will get the matched model names.
+            $('.Manufacturer').change(function () {
+                var manufactorName = $(this).val();
+                var carTr = $(this).parents('tr');
+                $.get("/lookup/models/" + manufactorName, function (resp) {
+                    Models = resp;
+                    var modelsSelect = carTr.find('[data-prop = "Model"]');
+                    carTr.data(carObjectKey).Model = Models[0];
+                    modelsSelect.find('option').remove();
+                    for (var i = 0; i < Models.length; i++) {
+                        $('<option></option>').text(Models[i]).appendTo(modelsSelect);
+                    }
+                });
+            });
+
+            //Deleting a car
+            $('.delete').click(function () {
+                var carTr = $(this).parents('tr');
+                $.post('@Url.Action("DeleteCar","CRUDCars")', { Id: carTr.data(carObjectKey)["Id"] }, function (resp) {
+                    $('.err').text("");
+                    if (resp.success)
+                        carTr.remove();
+                    else {
+                        $('.err').text(resp.errorMessage);
+                    }
+                });
+            });
+
+            //Inserting a new car.
+            $('.insert').click(function () {
+                var carTr = $(this).parents('tr');
+                $.post("@Url.Action("CreateCar","CRUDCars")", $(this).parents('tr').data(carObjectKey), function (resp) {
+                    $('.err').text("");
+                    if (resp.success) {
+                        carTr.find('input[name="id"]').val(resp.car.Id);
+                        carTr.find('form').submit();
+                        insertCarRow(resp.car);
+                        clearNewCarRow();
+                    }
+                    else {
+                        $('.err').text(resp.errorMessage);
+                    }
+                });
+
+
+            });
+
+            //Editing a chosen car.
+            $('.edit').click(function () {
+                var carTr = $(this).parents('tr');
+                $.post("@Url.Action("UpdateCar","CRUDCars")", $(this).parents('tr').data(carObjectKey), function (resp) {
+                    $('.err').text("");
+                    if (resp.success) {
+                        carTr.find('input[name="id"]').val(carTr.data(carObjectKey).Id);
+                        carTr.find('form').submit();
+                    }
+                    else {
+                        $('.err').text(resp.errorMessage);
+                    }
+                });
+            });
+        });
+    </script>
+
+}
+
+<h2>@ViewBag.Title</h2>
+
+<div class="err"></div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>מספר</th>
+            <th>קילומטראז' נוכחי</th>
+            <th>תקין להשכרה</th>
+            <th>מספר רכב</th>
+            <th>עלות יום איחור</th>
+            <th>שם יצרן</th>
+            <th>שם דגם</th>
+            <th>שם סניף</th>
+            <th>תמונה</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="new-car">
+            <td><span>חדש!!</span></td>
+            <td><input data-prop="CurrentMileage" /></td>
+            <td>
+                <select data-prop="RightToRent">
+                    <option value="true">תקין</option>
+                    <option value="false">לא תקין</option>
+                </select>
+            </td>
+            <td><input data-prop="CarNumber" /></td>
+            <td> <input type="number" data-prop="CostOfDayDelay" /></td>
+            <td>
+                <select class="Manufacturer" data-prop="Manufacturer"></select>
+            </td>
+            <td>
+                <select data-prop="Model"></select>
+            </td>
+            <td>
+                <select data-prop="BranchName"></select>
+            </td>
+            <td>
+                <form enctype="multipart/form-data" action="InsertCarImage" method="post">
+                    <span class="file-wrapper">
+                        <input type="file" name="carImage" id="image" />
+                        <span class="button">בחר</span>
+                    </span>
+                    <input name="id" class="hidden" />
+                </form>
+            </td>
+            <td><button class="insert" type="button">הוסף</button></td>
+        </tr>
+        <tr class="template">
+            <td><span data-prop="Id"></span></td>
+            <td><input data-prop="CurrentMileage" /></td>
+            <td>
+                <select data-prop="RightToRent">
+                    <option value="true">תקין</option>
+                    <option value="false">לא תקין</option>
+                </select>
+            </td>
+            <td><input data-prop="CarNumber" /></td>
+            <td> <input type="number" data-prop="CostOfDayDelay" /></td>
+            <td>
+                <select class="Manufacturer" data-prop="Manufacturer"></select>
+            </td>
+            <td>
+                <select data-prop="Model"></select>
+            </td>
+            <td>
+                <select data-prop="BranchName"></select>
+            </td>
+            <td>
+                <div data-prop="Image"></div>
+                <form enctype="multipart/form-data" action="InsertCarImage" method="post">
+                    <span class="file-wrapper">
+                        <input type="file" name="carImage" id="image" />
+                        <span class="button">בחר</span>
+                    </span>
+                    <input name="id" class="hidden" />
+                </form>
+            </td>
+            <td><button class="delete" type="button">מחק</button></td>
+            <td><button class="edit" type="button">ערוך</button></td>
+        </tr>
+    </tbody>
+</table>

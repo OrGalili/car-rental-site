@@ -1,0 +1,278 @@
+﻿@{
+    ViewBag.Title = "ניהול משתמשים";
+}
+
+
+<style>
+    .template {
+        display: none;
+    }
+
+    .file-wrapper {
+        cursor: pointer;
+        display: inline-block;
+        overflow: hidden;
+        position: relative;
+        width: inherit;
+        height: inherit;
+    }
+
+        .file-wrapper .button {
+            background: #0094ff;
+            -moz-border-radius: 5px;
+            -webkit-border-radius: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 4px 18px;
+            text-transform: uppercase;
+        }
+
+        .file-wrapper input {
+            cursor: pointer;
+            height: 100%;
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .file-wrapper input {
+            filter: alpha(opacity=1);
+            -moz-opacity: 0.01;
+            opacity: 0.01;
+        }
+
+        .file-wrapper input {
+            font-size: 100px;
+        }
+</style>
+
+@section scripts{
+    <script>
+        var userObjectKey = 'userObj';
+
+        //clear the data values and the value of the elements of the row.
+        function clearNewUserRow() {
+            $('.new-user').data(userObjectKey, {
+                UserId: null, Username: null, FirstName: null, LastName: null,
+                BirthDate: null, Email: null, Gender: 0, Password: null, UserRoles: []
+            }).find('input').val('').attr('checked', false);
+        }
+
+        //Inserting a user row in the page with the image of the user.
+        function insertUserRow(user) {
+            var userTr = $('.template').clone(true).removeClass('template').data(userObjectKey, user);
+            userTr.find('[data-prop = Image]').load('/Admin/GetImageForUser/' + user.Id);
+            for (var propName in user) {
+                if (propName == "Gender") {
+                    userTr.find('[data-prop="' + propName + '"]').val(user[propName]);
+                }
+                else if (propName == "UserRoles") {
+                    for (var role in user["UserRoles"]) {
+                        userTr.find('[data-prop="' + propName + '"]').find('[name="' + user["UserRoles"][role] + '"]').attr('checked', true);
+                    }
+                }
+                else if (propName == "BirthDate") {
+                    var birthDate = user[propName];
+                    var subStringDate = birthDate.substring(6);
+                    var parseIntDate = parseInt(subStringDate);
+                    birthDate = new Date(parseIntDate);
+                    birthDate.setDate(birthDate.getDate() + 1);
+                    birthDate = birthDate.toJSON().substring(0, 10);
+
+                    userTr.data(userObjectKey)["BirthDate"] = birthDate;
+                    userTr.find('[data-prop="' + propName + '"]').val(birthDate);
+                }
+                else {
+                    userTr.find('[data-prop="' + propName + '"]').text(user[propName]).val(user[propName]);
+                }
+            }
+            userTr.insertBefore('.template');
+        }
+        $(function () {
+            clearNewUserRow();
+
+            //when there is a change in an input or select element,
+            //the data field in the same row that related to the element wil be changed.
+            $('input,select').not(".User,.Admin,.Employee").change(function () {
+                $(this).parents('tr').data(userObjectKey)[$(this).data('prop')] = $(this).val();
+            });
+
+            //Delete user from Db and remove it from the page.
+            $('.delete').click(function () {
+                var tr = $(this).parents('tr');
+                $.post('@Url.Action("DeleteUser", "CRUDUsers")', tr.data(userObjectKey), function (resp) {
+                    $('.err').text("");
+                    if (resp.success) {
+                        tr.remove();
+                    }
+                    else {
+                        $('.err').text(resp.errorMessage);
+                    }
+                });
+            });
+
+            //Inserting new user to Db and adding it in the page.
+            $('.insert').click(function () {
+                var userTr = $(this).parents('tr');
+                var i = 0;
+                if ($(this).parent().siblings().find('input[class=User]').is(':checked')) {
+                    $(this).parents('tr').data(userObjectKey)['UserRoles'][i] = "User";
+                    i++;
+                }
+                if ($(this).parent().siblings().find('input[class=Employee]').is(':checked')) {
+                    $(this).parents('tr').data(userObjectKey)['UserRoles'][i] = "Employee";
+                    i++;
+                }
+                if ($(this).parent().siblings().find('input[class=Admin]').is(':checked')) {
+                    $(this).parents('tr').data(userObjectKey)['UserRoles'][i] = "Admin";
+                    i++;
+                }
+
+                $.post('@Url.Action("CreateUser", "CRUDUsers")', { user: $(this).parents('tr').data(userObjectKey), roles: $(this).parents('tr').data(userObjectKey)["UserRoles"] }, function (resp) {
+                    $('.err').text("");
+                    if (resp.success) {
+                        userTr.find('input[name ="id"]').val(resp.user.Id);
+                        userTr.find('form').submit();
+                        insertUserRow(resp.user);
+                        clearNewUserRow();
+                    }
+                    else {
+                        $('.err').text(resp.errorMessages);
+                    }
+                });
+            });
+
+            //Editing a chosen user.
+            $('.edit').click(function () {
+                var userTr = $(this).parents('tr');
+                var id = userTr.find('[data-prop="Id"]').val();
+                $(this).parents('tr').data(userObjectKey)['UserRoles'] = [];
+                var i = 0;
+                if ($(this).parent().siblings().find('input[class=User]').is(':checked')) {
+                    $(this).parents('tr').data(userObjectKey)['UserRoles'][i] = "User";
+                    i++;
+                }
+                if ($(this).parent().siblings().find('input[class=Employee]').is(':checked')) {
+                    $(this).parents('tr').data(userObjectKey)['UserRoles'][i] = "Employee";
+                    i++;
+                }
+                if ($(this).parent().siblings().find('input[class=Admin]').is(':checked')) {
+                    $(this).parents('tr').data(userObjectKey)['UserRoles'][i] = "Admin";
+                    i++;
+                }
+
+                $.post('@Url.Action("UpdateUser", "CRUDUsers")', { user: $(this).parents('tr').data(userObjectKey), roles: $(this).parents('tr').data(userObjectKey)["UserRoles"] }, function (resp) {
+                    $('.err').text("");
+                    if (resp.success) {
+                        userTr.find('input[name="id"]').val(id);
+                        userTr.find('form').submit();
+                    }
+                    else {
+                        $('.err').text(resp.errorMessages);
+                    }
+                });
+            });
+
+            //Bring all users that in Db.
+            $.get('@Url.Action("GetUsers", "CRUDUsers")', function (resp) {
+                for (var i = resp.length - 1; i >= 0; i--) {
+                    insertUserRow(resp[i]);
+                }
+            });
+        });
+
+    </script>
+}
+
+<h2>@ViewBag.Title</h2>
+<div class="err"></div>
+<form action=""></form>
+<table class="table">
+    <thead>
+        <tr>
+            <th>מספר</th>
+            <th>תעודת זהות</th>
+            <th>כינוי</th>
+            <th>סיסמא</th>
+            <th>שם פרטי</th>
+            <th>שם משפחה</th>
+            <th>תאריך לידה</th>
+            <th>מין</th>
+            <th>אימייל</th>
+            <th>תמונה</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="new-user">
+            <td><span>חדש!!</span></td>
+            <td><input data-prop="UserId" /></td>
+            <td>
+                <input data-prop="Username" /><br />
+                <fieldset data-prop="UserRoles">
+                    <input data-prop="UserRoles" type="checkbox" name="User" class="User" /> משתמש
+                    <input data-prop="UserRoles" type="checkbox" name="Employee" class="Employee" /> עובד
+                    <input data-prop="UserRoles" type="checkbox" name="Admin" class="Admin" /> מנהל
+                </fieldset>
+            </td>
+            <td><input data-prop="Password" /></td>
+            <td><input data-prop="FirstName" /></td>
+            <td><input data-prop="LastName" /></td>
+            <td><input type="date" data-prop="BirthDate" /></td>
+            <td>
+                <select data-prop="Gender">
+                    <option value="0">זכר</option>
+                    <option value="1">נקבה</option>
+                </select>
+            </td>
+            <td><input data-prop="Email" type="email" /></td>
+            <td>
+                <form enctype="multipart/form-data" method="post" action="InsertUserImage">
+                    <span class="file-wrapper">
+                        <input type="file" name="userImage" id="image" />
+                        <span class="button">בחר</span>
+                    </span>
+                    <input name="id" class="hidden" />
+                </form>
+            </td>
+            <td><button class="insert" type="button">הוסף</button></td>
+        </tr>
+        <tr class="template">
+            <td><span data-prop="Id"></span></td>
+            <td><input data-prop="UserId" /></td>
+            <td>
+                <input data-prop="Username" /><br />
+                <fieldset data-prop="UserRoles">
+                    <input data-prop="UserRoles" type="checkbox" name="User" class="User" /> משתמש
+                    <input data-prop="UserRoles" type="checkbox" name="Employee" class="Employee" /> עובד
+                    <input data-prop="UserRoles" type="checkbox" name="Admin" class="Admin" /> מנהל
+                </fieldset>
+            </td>
+            <td><input data-prop="Password" readonly /></td>
+            <td><input data-prop="FirstName" /></td>
+            <td><input data-prop="LastName" /></td>
+            <td><input type="date" data-prop="BirthDate" /></td>
+            <td>
+                <select data-prop="Gender">
+                    <option value="0">זכר</option>
+                    <option value="1">נקבה</option>
+                </select>
+            </td>
+            <td><input data-prop="Email" type="email" /></td>
+            <td>
+                <div data-prop="Image"></div>
+                <form class="formTemplate" enctype="multipart/form-data" method="post" action="InsertUserImage">
+                    <span class="file-wrapper">
+                        <input type="file" name="userImage" id="image" />
+                        <span class="button">בחר</span>
+                    </span>
+                    <input name="id" class="hidden" />
+                </form>
+            </td>
+            <td><button class="delete" type="button">מחק</button></td>
+            <td><button class="edit" type="button">ערוך</button></td>
+        </tr>
+    </tbody>
+</table>

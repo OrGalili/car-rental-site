@@ -1,0 +1,219 @@
+﻿@{
+    ViewBag.Title = "ניהול השכרות";
+}
+
+<h2>@ViewBag.Title</h2>
+
+<style>
+    .template {
+        display: none;
+    }
+</style>
+
+@section scripts{
+    <script>
+        var rentalObjectKey = 'rentalObj';
+        var usernamesInDb = [];
+        var carNumbersInDb = [];
+
+        //Bring the car numbers that in Db.
+        $.get('/lookup/carNumbers/', function (resp) {
+            carNumbersInDb = resp;
+            //Bring the user names that in Db.
+            $.get('/lookup/usernames/', function (resp) {
+                usernamesInDb = resp;
+                activate();
+            });
+
+        });
+
+        //After doing ajax Activating functions.
+        function activate() {
+            addComboBoxesDataTo('.new-rent');
+            addComboBoxesDataTo('.template');
+            clearNewRentalRow();
+            //Bring all car rentals that in Db.
+            $.get('@Url.Action("GetRentals","CRUDRentals")', function (resp) {
+                for (var i = resp.length - 1; i >= 0; i--) {
+                    insertRentalRow(resp[i]);
+                }
+            });
+        };
+
+        //clear the data values and the value of the elements of the row.
+        function clearNewRentalRow() {
+            $('.new-rent').data(rentalObjectKey, {
+                StartDate: null, ReturnDate: null,
+                ActualReturnDate: null, Username: usernamesInDb[0], CarNumber: carNumbersInDb[0]
+            }).find('input').val('');
+
+            $('.new-rent').find("[data-prop='Usernames']").val(-1/*usernamesInDb[0]*/);
+            $('.new-rent').find("[data-prop='CarNumbers']").val(-1/*carNumbersInDb[0]*/);
+        }
+
+        //Inserting user names to a comb box and car numbers to a seprated combo box.
+        function addComboBoxesDataTo(rowClassName) {
+            var namesSelect = $(rowClassName).find('[data-prop="Usernames"]');
+            for (i = 0; i < usernamesInDb.length; i++) {
+                $('<option></option>').text(usernamesInDb[i]).appendTo(namesSelect);
+            }
+
+            var numbersSelect = $(rowClassName).find('[data-prop = "CarNumbers"]');
+            for (i = 0; i < carNumbersInDb.length; i++) {
+                $('<option></option>').text(carNumbersInDb[i]).appendTo(numbersSelect);
+            }
+        }
+
+        //Inserting a car rental row in the page.
+        function insertRentalRow(rental) {
+            var rentTr = $('.template').clone(true).removeClass('template').data(rentalObjectKey, rental);
+            for (var propName in rental) {
+                var value;
+                if (propName == "StartDate" || propName == "ReturnDate" || propName == "ActualReturnDate") {
+                    var date = rental[propName];
+                    var subStringDate = date.substring(6);
+                    var parseIntDate = parseInt(subStringDate);
+                    date = new Date(parseIntDate);
+                    date = date.toJSON().substring(0, 10);
+                    rentTr.data(rentalObjectKey)[propName] = date;
+                    value = date;
+                }
+                if (propName == "CarNumber")
+                {
+                    value = rental[propName];
+                    propName = "CarNumbers";
+                }
+                if (propName == "Username")
+                {
+                    value = rental[propName];
+                    propName = "Usernames";
+                }
+                if (propName == "Id")
+                {
+                    value = rental[propName];
+                    rentTr.find('[data-prop="' + propName + '"]').text(value);
+                    continue;
+                }
+                rentTr.find('[data-prop="' + propName + '"]').val(value);
+            }
+            rentTr.insertBefore('.template');
+        }
+
+        $(function () {
+
+            //when there is a change in an input or select element, 
+            //the data field in the same row that related to the element wil be changed.
+            $('input,select').change(function () {
+                if ($(this).data('prop') == "Usernames") {
+                    $(this).parents('tr').data(rentalObjectKey)['Username'] = $(this).val();
+                }
+                else if ($(this).data('prop') == "CarNumbers") {
+                    $(this).parents('tr').data(rentalObjectKey)['CarNumber'] = $(this).val();
+                }
+                $(this).parents('tr').data(rentalObjectKey)[$(this).data('prop')] = $(this).val();
+            });
+
+            //Inserting a rental in Db and showing it on the page.
+            $('.insert').click(function () {
+                $.post("@Url.Action("CreateRental","CRUDRentals")", $(this).parents('tr').data(rentalObjectKey), function (resp) {
+                    $('.err').text("");
+                    if (resp.success) {
+                        insertRentalRow(resp.rental);
+                        clearNewRentalRow();
+                    }
+                    else {
+                        $('.err').text(resp.error);
+                    }
+                });
+            });
+
+            //Deleting rental from Db and removing it from the page.
+            $('.delete').click(function () {
+                var rentTr = $(this).parents('tr');
+                $.post('@Url.Action("DeleteRental","CRUDRentals")', {Id :rentTr.data(rentalObjectKey)["Id"]}, function (resp) {
+                    if (resp.success)
+                        rentTr.remove();
+                });
+            });
+
+            //Editing a chosen rental.
+            $('.edit').click(function () {
+                $.post("@Url.Action("UpdateRental", "CRUDRentals")", $(this).parents('tr').data(rentalObjectKey), function (resp) {
+                    $('.err').text('');
+                    if (!resp.success) {
+                        $('.err').text(resp.error);
+                    }
+                });
+            });
+
+        });
+    </script>
+}
+
+<div class="err"></div>
+
+<table class="table">
+
+    <thead>
+        <tr>
+            <th>מספר השכרה</th>
+            <th>תאריך התחלה</th>
+            <th>תאריך החזרה</th>
+            <th>תאריך החזרה בפועל</th>
+            <th>שם משתמש</th>
+            <th>מספר רכב</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="new-rent">
+            <td>
+                <span data-prop="Id">חדש!!</span>
+            </td>
+            <td>
+                <input type="date" data-prop="StartDate" />
+            </td>
+            <td>
+                <input type="date" data-prop="ReturnDate" />
+            </td>
+            <td>
+                <input type="date" data-prop="ActualReturnDate" />
+            </td>
+            <td>
+                <select data-prop="Usernames"></select>
+            </td>
+            <td>
+                <select data-prop="CarNumbers"></select>
+            </td>
+            <td>
+                <button type="button" class="insert">הוסף</button>
+            </td>
+        </tr>
+        <tr class="template">
+            <td>
+                <span data-prop="Id"></span>
+            </td>
+            <td>
+                <input type="date" data-prop="StartDate" />
+            </td>
+            <td>
+                <input type="date" data-prop="ReturnDate" />
+            </td>
+            <td>
+                <input type="date" data-prop="ActualReturnDate" />
+            </td>
+            <td>
+                <select data-prop="Usernames"></select>
+            </td>
+            <td>
+                <select data-prop="CarNumbers"></select>
+            </td>
+            <td>
+                <button type="button" class="delete">מחק</button>
+            </td>
+            <td>
+                <button type="button" class="edit">ערוך</button>
+            </td>
+        </tr>
+    </tbody>
+
+</table>

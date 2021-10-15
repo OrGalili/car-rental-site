@@ -1,0 +1,171 @@
+﻿@using Model
+@model Car
+@{
+    ViewBag.Title = "RentalCalculator";
+}
+
+@section scripts{
+    <script>
+
+        //Return the differnce between two dates.
+        function countDays( startDate, endDate )
+            {
+                var oneDay = 24*60*60*1000; // hours*minutes*seconds*milliseconds
+                var diffDays = Math.abs((startDate.getTime() - endDate.getTime())/(oneDay));
+                return diffDays;
+        }
+
+        //When start date changed , changing the end date value as apropriate.
+        $('#StartDate').change(function () {
+            if ($('#StartDate').val() != '') {
+                $('#EndDate').attr('min', $('#StartDate').val());
+                if ($('#StartDate').val() >= $('#EndDate').val()) {
+                    $('#EndDate').val($('#StartDate').val());
+                }
+            }
+        });
+
+        //Getting data from the local storage.
+        var lastFieldsAsJson = localStorage.getItem('lastFields');
+        var lastFields = JSON.parse(lastFieldsAsJson);
+        $('#StartDate').val(lastFields[0].StartDate);
+        $('#EndDate').val(lastFields[0].EndDate);
+        $('#EndDateRadio').hide();
+        $('#NumberDays').hide();
+        $('#EndDateRadio').prop('checked',true)
+        //Showing the input that had been chose.
+            $("input[name='queryType']").click(function () {
+                $('#EndDate').hide();
+                $('#NumberDays').hide();
+                $("input[name='queryType']").show();
+                $(this).hide();
+                $(this).nextAll('input').eq(0).show(500);
+            });
+        
+
+            var carNumber = $('td').first().text();
+            var startDate;
+            var endDate;
+            var quantityDays = 0;
+            var allDateDetailsOk;
+            var ul = $('<ul><ul>').css('display', 'none').appendTo('#orderDetails');
+        //Calculating the cost of the rent.
+            $("button[type='button']").click(function () {
+                allDateDetailsOk = true;
+                $('li').remove();
+                if ($('#StartDate').val() != '') {
+                    startDate = $('#StartDate').val();
+                    if ($('#QuantityDaysRadio').is(':checked')) {
+                        if (!isNaN($('#NumberDays').val())) {
+                            quantityDays = $('#NumberDays').val();
+                            var sd = new Date(startDate);
+                            endDate = new Date(sd);
+                            endDate.setDate(sd.getDate() + parseInt(quantityDays));
+                            endDate = endDate.toJSON();
+                        }
+                        else {
+                            allDateDetailsOk = false;
+                        }
+                    }
+                    else {
+                        endDate = $('#EndDate').val();
+                        if (endDate == '')
+                            endDate = $('#StartDate').val();
+                        quantityDays = countDays(new Date(startDate), new Date(endDate)) + 1;
+                    }
+                    if (allDateDetailsOk) {
+                        //Check if the rental is available
+                        $.get('/lookup/isAvailableTime/', { carNumber: carNumber, startDate: startDate, endDate: endDate }, function (available) {
+                            if (available) {
+                                var dayDelayCost = $('td').last().text();
+                                var dailyCost = $('td').last().prev().text();
+                                var sumToPay = dailyCost * quantityDays;
+                                $('<li></li>').text('סך הכל לתשלום: ' + sumToPay).appendTo(ul);
+                                $('<li></li>').text('עלות יום איחור: ' + dayDelayCost).appendTo(ul);
+                                $('<li></li>').append("<button type='submit' id ='order' class= 'btn btn-default'>הזמן</button>").appendTo(ul);
+                                ul.slideDown(100 * 3);
+                                $('#order').click(function () {
+                                    localStorage.setItem('startDate', JSON.stringify(startDate));
+                                    localStorage.setItem('endDate', JSON.stringify(endDate));
+                                });
+                            }
+                            else {
+                                $('<li></li>').text('בתאריך שציינת , הרכב תפוס').appendTo(ul);
+                                ul.slideDown(100);
+                            }
+                        });
+                    }
+                }
+                else {
+                    $('<li></li>').text('לא נוכל לחשב את עלות ההשכרה ללא תאריך התחלה').appendTo(ul);
+                    ul.slideDown(100);
+                }
+
+            });
+           
+    </script>
+}
+
+<h2>@ViewBag.Title</h2>
+
+@using (Html.BeginForm("CarInvitation", "User"))
+{
+    if (Model != null)
+    {
+        HttpCookie cook = new HttpCookie("carNumber", Model.CarNumber.ToString());
+        Response.AppendCookie(cook);
+        <div>
+            <table id="CarDetails" class="table">
+                <thead>
+                    <tr>
+                        <th colspan="9">פרטי רכב נבחר</th>
+                    </tr>
+                    <tr>
+                        <th>מספר רכב</th>
+                        <th>כתובת</th>
+                        <th>שם סניף</th>
+                        <th>יצרן</th>
+                        <th>דגם</th>
+                        <th>גיר</th>
+                        <th>קילומטרז' נוכחי</th>
+                        <th>עלות יומית</th>
+                        <th>עלות יום איחור</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>@Model.CarNumber</td>
+                        <td>@Model.Branch.Address</td>
+                        <td>@Model.Branch.Name</td>
+                        <td>@Model.CarType.Manufacturer</td>
+                        <td>@Model.CarType.Model</td>
+                        <td>@Model.CarType.Gear</td>
+                        <td>@Model.CurrentMileage</td>
+                        <td>@Model.CarType.DailyCost</td>
+                        <td>@Model.CostOfDayDelay</td>
+                    </tr>
+                </tbody>
+            </table>
+           
+        </div>
+        <div class="form-inline">
+            <label for="StartDate">תאריך התחלה</label>
+            <input type="date" class="form-control" id="StartDate">
+
+            <input type="radio" name="queryType" id="EndDateRadio" />
+            <label for="StartDate">תאריך החזרה</label>
+            <input type="date" class="form-control" id="EndDate" />
+            <br /><br />
+            <input type="radio" name="queryType" id="QuantityDaysRadio" />
+            <label for="NumberDays">כמות ימים</label>
+            <input class="form-control" id="NumberDays" placeholder="כמות ימים">
+        </div>
+        <button type="button" class="btn btn-default">חשב</button>
+            <div id="orderDetails">
+            </div>
+    }
+    else
+    {
+        <p>ראשית עלייך לבחור רכב בדף חיפוש רכבים ומשם לפנות לדף חישוב ההשכרה</p>
+    }
+}

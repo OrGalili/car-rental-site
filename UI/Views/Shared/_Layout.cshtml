@@ -1,0 +1,70 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewBag.Title - Or's Car Rental Services</title>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+</head>
+<body>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                @Html.ActionLink("אור השכרת רכב", "Index", "Home", new { area = "" }, new { @class = "navbar-brand" })
+            </div>
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    @{
+                        <li>@Html.ActionLink("דף הבית", "Index", "Home")</li>
+                        <li>@Html.ActionLink("חיפוש רכב להשכרה", "CarSearch", "Home")</li>
+                        <li>@Html.ActionLink("קצת עלינו", "About", "Home")</li>
+                        <li>@Html.ActionLink("צור קשר", "Contact", "Home")</li>
+                        if (User.IsInRole("User"))
+                        {
+                            <li>@Html.ActionLink("היסטוריית השכרות", "userOrdersHistory", "User")</li>
+                        }
+                        if (User.IsInRole("Admin"))
+                        {
+                            <li>@Html.ActionLink("משתמשים","CRUDUsers","Admin")</li>
+                            <li>@Html.ActionLink("מכוניות", "CRUDCars", "Admin")</li>
+                            <li>@Html.ActionLink("השכרות", "CRUDRentals", "Admin")</li>
+                            <li>@Html.ActionLink("סוגי מכוניות", "CRUDCarTypes", "Admin")</li>
+                        }
+                        if (User.IsInRole("Employee"))
+                        {
+                            <li>@Html.ActionLink("סגירת השכרות","ReturnCar","Employee")</li>
+                        }
+                        if (!User.IsInRole("User") && !User.IsInRole("Admin") && !User.IsInRole("Employee"))
+                        {
+                            <li>@Html.ActionLink("התחבר למערכת", "Login", "Home")</li>
+                            <li>@Html.ActionLink("הרשם למערכת", "Register", "Home")</li>
+                        }
+                        if (User.IsInRole("User") || User.IsInRole("Admin") || User.IsInRole("Employee"))
+                        {
+                            <li>@Html.ActionLink("התנתק", "LogOut", "Home")</li>
+                        }
+
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+        <footer>
+            <p>&copy; @DateTime.Now.Year - Or's Car Rental Services</p>
+        </footer>
+    </div>
+
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/bootstrap")
+    @RenderSection("scripts", required: false)
+</body>
+</html>

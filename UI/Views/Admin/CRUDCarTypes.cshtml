@@ -1,0 +1,133 @@
+﻿@{
+    ViewBag.Title = "ניהול סוגי מכוניות";
+}
+
+<style>
+    .template {
+        display: none;
+    }
+</style>
+
+@section scripts{
+    <script>
+        var carTypeObjectKey = 'carTypeObj';
+
+        //clear the data values and the value of the elements of the row.
+        function clearNewCarTypeRow() {
+            $('.new-carType').data(carTypeObjectKey, {
+                Manufacturer: null, Model: null,
+                DailyCost: null, Gear: 0
+            }).find('input').val('');
+        }
+
+        //Inserting a car type row in the page.
+        function insertCarTypeRow(carType) {
+            var carTypeTr = $('.template').clone(true).removeClass('template').data(carTypeObjectKey, carType);
+            for (propName in carType) {
+                if (propName == 'Gear') {
+                    carTypeTr.find('[data-prop ="Gear"]').val(carType.Gear);
+                }
+                else
+                    carTypeTr.find('[data-prop ="' + propName + '"]').val(carType[propName]).text(carType[propName]);
+            }
+            carTypeTr.insertBefore('.template');
+        }
+
+
+        $(function () {
+            clearNewCarTypeRow();
+
+            //when there is a change in an input or select element, 
+            //the data field in the same row that related to the element wil be changed.
+            $('input,select').change(function () {
+                $(this).parents('tr').data(carTypeObjectKey)[$(this).data('prop')] = $(this).val();
+            });
+
+            //Bring all car types that in Db.
+            $.get('@Url.Action("GetCarTypes","CRUDCarTypes")', function (resp) {
+                for (var i = resp.length - 1 ; i >= 0; i--) {
+                    insertCarTypeRow(resp[i]);
+                }
+            });
+
+            //Inserting a new car type, and adding it in the page.
+            $('.insert').click(function () {
+                $.post("@Url.Action("CreateCarType","CRUDCarTypes")", $(this).parents('tr').data(carTypeObjectKey), function (resp) {
+                    $('.err').text('');
+                    if (resp.success) {
+                        insertCarTypeRow(resp.cartype);
+                        clearNewCarTypeRow();
+                    }
+                    else
+                        $('.err').text(resp.errorMessage);
+                });
+            });
+
+            //Deleting a car type from Db and removing it from the page.
+            $('.delete').click(function () {
+                var carTypeTr = $(this).parents('tr');
+                $.post("@Url.Action("DeleteCarType","CRUDCarTypes")", { Id: carTypeTr.data(carTypeObjectKey)["Id"] }, function (resp) {
+                    $('.err').text('');
+                    if (resp.success) {
+                        carTypeTr.remove();
+                    }
+                });
+            });
+
+            //Editing a chosen car type.
+            $('.edit').click(function () {
+                $.post("@Url.Action("UpdateCarType","CRUDCarTypes")", $(this).parents('tr').data(carTypeObjectKey), function (resp) {
+                    $('.err').text('');
+                    if (!resp.success) {
+                        $('.err').text(resp.errorMessage);
+                    }
+                });
+            });
+        });
+    </script>
+}
+
+<h2>@ViewBag.Title</h2>
+
+<div class="err"></div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>מספר</th>
+            <th>יצרן</th>
+            <th>דגם</th>
+            <th>עלות יומית</th>
+            <th>גיר</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="new-carType">
+            <td><span>חדש!!</span></td>
+            <td><input type="text" data-prop="Manufacturer" /></td>
+            <td><input type="text" data-prop="Model" /></td>
+            <td><input type="number" data-prop="DailyCost" /></td>
+            <td>
+                <select data-prop="Gear">
+                    <option value="0">ידני</option>
+                    <option value="1">אוטומט</option>
+                </select>
+            </td>
+            <td><button class="insert" type="button">הוסף</button></td>
+        </tr>
+        <tr class="template">
+            <td><span data-prop="Id"></span></td>
+            <td><input type="text" data-prop="Manufacturer" /></td>
+            <td><input type="text" data-prop="Model" /></td>
+            <td><input type="number" data-prop="DailyCost" /></td>
+            <td>
+                <select data-prop="Gear">
+                    <option value="0">ידני</option>
+                    <option value="1">אוטומט</option>
+                </select>
+            </td>
+            <td><button class="delete" type="button">מחק</button></td>
+            <td><button class="edit" type="button">ערוך</button></td>
+        </tr>
+    </tbody>
+</table>

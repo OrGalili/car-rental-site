@@ -1,0 +1,90 @@
+﻿@using Model
+@model Car
+@{
+    ViewBag.Title = "הזמנת רכב";
+}
+@section  scripts{
+    <script>
+
+        //Return the differnce between two dates.
+        function countDays(startDate, endDate) {
+            var oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
+            var diffDays = Math.abs((startDate.getTime() - endDate.getTime()) / (oneDay));
+            return diffDays;
+        }
+
+        var startDate = JSON.parse(localStorage.getItem('startDate'));
+        var endDate = JSON.parse(localStorage.getItem('endDate'));
+
+        $('#startDate').val(startDate);
+        $('#endDate').val(endDate);
+
+        var quantiyDays = countDays(new Date(startDate), new Date(endDate)) + 1;
+        $('#amount').text(quantiyDays* @Model.CarType.DailyCost);
+
+        //Set name and value of car number to the button in order to submit with a value.
+        $('button').click(function () {
+            $(this).attr({
+                name: 'carNumber',
+                value: $('td').first().text()
+                });
+        });
+    </script>
+}
+<h2>@ViewBag.Title</h2>
+@using (Html.BeginForm("setOrderInDb","User"))
+{
+    <div>
+        @if(Model!=null)
+        { 
+        <table id="CarDetails" class="table">
+            <thead>
+                <tr>
+                    <th colspan="9">פרטי רכב נבחר</th>
+                </tr>
+                <tr>
+                    <th>מספר רכב</th>
+                    <th>כתובת</th>
+                    <th>שם סניף</th>
+                    <th>יצרן</th>
+                    <th>דגם</th>
+                    <th>גיר</th>
+                    <th>קילומטרז' נוכחי</th>
+                    <th>עלות יומית</th>
+                    <th>עלות יום איחור</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>@Model.CarNumber</td>
+                    <td>@Model.Branch.Address</td>
+                    <td>@Model.Branch.Name</td>
+                    <td>@Model.CarType.Manufacturer</td>
+                    <td>@Model.CarType.Model</td>
+                    <td>@Model.CarType.Gear</td>
+                    <td>@Model.CurrentMileage</td>
+                    <td>@Model.CarType.DailyCost</td>
+                    <td>@Model.CostOfDayDelay</td>
+                </tr>
+            </tbody>
+        </table>
+        }
+        <div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>תאריך התחלה</label>
+                    <input class="form-control" id="startDate" name="startDate" type="date" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label>תאריך החזרה</label>
+                    <input class="form-control" id="endDate" name="endDate" type="date" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label>סך הכל לתשלום</label><br />
+                    <label id="amount"></label>
+                </div>
+            </div>
+        </div>
+        <button class="form-control">אשר הזמנה</button>
+    </div>
+}

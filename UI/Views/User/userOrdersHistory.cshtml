@@ -1,0 +1,45 @@
+﻿@using Model
+@model IEnumerable<CarRental>
+@{
+    ViewBag.Title = "היסטורית הזמנות של משתמש";
+}
+
+<h2>@ViewBag.Title</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>מספר רכב</th>
+            <th>כתובת</th>
+            <th>שם סניף</th>
+            <th>יצרן</th>
+            <th>דגם</th>
+            <th>גיר</th>
+            <th>קילומטרז' נוכחי</th>
+            <th>עלות יומית</th>
+            <th>עלות יום איחור</th>
+            <th>תאריך התחלה</th>
+            <th>תאריך החזרה</th>
+            <th>תאריך החזרה בפועל</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach(CarRental rental in Model)
+        { 
+        <tr>
+            <td>@rental.Car.CarNumber</td>
+            <td>@rental.Car.Branch.Address</td>
+            <td>@rental.Car.Branch.Name</td>
+            <td>@rental.Car.CarType.Manufacturer</td>
+            <td>@rental.Car.CarType.Model</td>
+            <td>@rental.Car.CarType.Gear</td>
+            <td>@rental.Car.CurrentMileage</td>
+            <td>@rental.Car.CarType.DailyCost</td>
+            <td>@rental.Car.CostOfDayDelay</td>
+            <td>@rental.StartDate.ToShortDateString()</td>
+            <td>@rental.ReturnDate.ToShortDateString()</td>
+            <td>@rental.ActualReturnDate.ToShortDateString()</td>
+        </tr>
+        }
+    </tbody>
+</table>

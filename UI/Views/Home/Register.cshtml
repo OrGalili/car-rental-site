@@ -1,0 +1,52 @@
+﻿@using Model
+@model User
+@{
+    ViewBag.Title = "הרשמה";
+}
+
+<h2>@ViewBag.Title</h2>
+
+@Html.ValidationSummary()
+
+@using (Html.BeginForm("Register", "Home", FormMethod.Post,new { enctype = "multipart/form-data" }))
+{
+
+    <div class="form-group">
+        <label for="Firstname">שם פרטי</label>
+        @Html.TextBoxFor(u => u.FirstName, new { @class = "form-control", placeholder = "הכנס שם פרטי" })
+    </div>
+    <div class="form-group">
+        <label for="Lastname">שם משפחה</label>
+        @Html.TextBoxFor(u => u.LastName, new { @class = "form-control", placeholder = "הכנס שם משפחה" })
+    </div>
+    <div class="form-group">
+        <label>תעודת זהות</label>
+        @Html.TextBoxFor(u => u.UserId, new { @class = "form-control", placeholder = "הכנס תעודת זהות" })
+    </div>
+    <div class="form-group">
+        <label for="Username">שם משתמש</label>
+        @Html.TextBoxFor(u => u.Username, new { @class = "form-control", placeholder = "הכנס שם משתמש" })
+    </div>
+    <div class="form-group">
+        <label for="Birthdate">תאריך לידה</label>
+        @Html.TextBoxFor(u => u.BirthDate, new { type = "date", @class = "form-control" })
+    </div>
+    <div class="form-group">
+        <label for="Gender">מין</label><br />
+        זכר @Html.RadioButtonFor(u => u.Gender, 0, new { @class = "form-control" })
+        נקבה @Html.RadioButtonFor(u => u.Gender, 1, new { @class = "form-control" })
+    </div>
+    <div class="form-group">
+        <label for="Email">דואר אלקטרוני</label>
+        @Html.TextBoxFor(u => u.Email, new { type = "email", @class = "form-control", placeholder = "הכנס דואר אלקטרוני" })
+    </div>
+    <div class="form-group">
+        <label for="Password">סיסמא</label>
+        @Html.TextBoxFor(u => u.Password, new { type = "password", @class = "form-control", placeholder = "הכנס סיסמא" })
+    </div>
+    <div class="form-group">
+        <label for="Picture">תמונה</label>
+        <input type="file" name="userImage" id="Picture">
+    </div>
+    <button type="submit" class="btn btn-default">הירשם</button>
+}

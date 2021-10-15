@@ -1,0 +1,19 @@
+﻿@using MvcUI.nadav.Models
+@model LoginVm
+@{
+    ViewBag.Title = "התחבר למערכת";
+}
+<h2>@ViewBag.Title</h2>
+@using (Html.BeginForm())
+{
+    @Html.ValidationSummary()
+    <div class="form-group">
+        <label for="Username">שם משתמש</label>
+        <input type="text" class="form-control" id="Username" name="Username" placeholder="הכנס שם משתמש">
+    </div>
+    <div class="form-group">
+        <label for="Password">סיסמא</label>
+        <input type="password" class="form-control" id="Password" name = "Password" placeholder="הכנס סיסמא">
+    </div>
+    <button type="submit" class="btn btn-default">התחבר</button>
+}

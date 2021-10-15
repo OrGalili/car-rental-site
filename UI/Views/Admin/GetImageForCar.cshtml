@@ -1,0 +1,6 @@
+﻿@model byte[]
+@* partial view *@
+@if (Model != null)
+{
+    <img src="@Url.Action("CarImage", "Admin", new { id = ViewBag.id })" width="55" height="15" />
+}

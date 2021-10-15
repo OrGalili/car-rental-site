@@ -1,0 +1,293 @@
+﻿@using Model
+@model IEnumerable<Car>
+@{
+    ViewBag.Title = "חיפוש רכב";
+}
+
+@section scripts{
+    @*<script src="~/Views/Home/CarSearch.js"></script>*@
+    <script>
+        var types = [];
+        //Showing on page the last seacrh fields that the user chose.
+        function ShowLastFields(fieldsToShow) {
+            $('#Manufactor').prop('selectedIndex', fieldsToShow[0].ManufacturerSelectedIndex);
+            $('#Gear').prop('selectedIndex', fieldsToShow[0].GearSelectedIndex);
+            $('#FreeText').val(fieldsToShow[0].FreeText);
+            $('#StartDate').val(fieldsToShow[0].StartDate);
+            $('#EndDate').val(fieldsToShow[0].EndDate);
+
+            var startDate = $('#StartDate').val();
+            var endDate = $('#EndDate').val();
+            if (startDate && endDate) {
+                $("#DateRange").append('<input name="StartDate" value="' + startDate + '"/>');
+                $("#DateRange").append('<input name="EndDate" value="' + endDate + '"/>');
+            }
+        }
+
+
+        $(function () {
+            var historyCarSearch;
+            //History search that saved in local storage.
+            var historyCarSearchAsJson = localStorage.getItem('totalCarSearchHistory');
+            if (historyCarSearchAsJson) {
+                try {
+                    historyCarSearch = JSON.parse(historyCarSearchAsJson);
+                } catch (e) { }
+            }
+            if (!Array.isArray(historyCarSearch)) {
+                historyCarSearch = [];
+            }
+
+            //saving the cars that found in the search.
+            var tableData = $('#SearchResults tbody tr');
+            var rowData;
+            var carData = [];
+            for (var i = 0; i < tableData.length; i++) {
+
+                rowData = tableData[i].children;
+                if (!isCarExistInHistory(rowData[0].innerText)) {
+                    carData = [];
+                    for (j = 0 ; j < rowData.length; j++) {
+                        carData.push(rowData[j].innerText);
+                    }
+                    historyCarSearch.push(carData);
+                }
+            }
+            localStorage.setItem('totalCarSearchHistory', JSON.stringify(historyCarSearch));
+
+            //Creating a history search table.
+            if (historyCarSearch.length > 0) {
+                $('#HistoryCarSearch').removeClass('hidden');
+                $('#HistoryTable').append('<tbody>');
+                for (var i = 0 ; i < historyCarSearch.length ; i++) {
+                    carData = historyCarSearch[i];
+                    $('#HistoryTable tbody').append('<tr>');
+                    for (var j = 0; j < carData.length - 1; j++) {
+                        $('#HistoryTable tr').last().append('<td>' + carData[j] + '</td>');
+                    }
+                    $('#HistoryTable tbody').append('</tr>');
+                }
+                $('#HistoryTable').append('</tbody>');
+            }
+
+            //Check if a specific car exist in the history search data.
+            function isCarExistInHistory(carNumber) {
+                for (var i = 0; i < historyCarSearch.length; i++) {
+                    if (carNumber == historyCarSearch[i][0])
+                        return true;
+                }
+                return false;
+            }
+
+        });
+
+        $(function () {
+            var select = $('#Manufactor');
+            types = [];
+            var modelSelect = $('#Model');
+            var lastFields;
+            var lastFieldsAsJson = localStorage.getItem('lastFields');
+
+            //Bring manufactor names from Db.
+            $.get('/lookup/types', function (resp) {
+                types = resp;
+                for (var i = 0; i < resp.length; i++) {
+                    $('<option></option>').text(resp[i]).appendTo(select);
+                }
+
+                //Bring model names of the first manufactor name.
+                $.get('/lookup/models/' + types[0], function (resp) {
+                    for (var i = 0; i < resp.length; i++) {
+                        $('<option></option>').text(resp[i]).appendTo(modelSelect);
+                    }
+                    if (lastFieldsAsJson) {
+                        try {
+                            lastFields = JSON.parse(lastFieldsAsJson);
+                        } catch (e) { }
+                    }
+                    if (!Array.isArray(lastFields)) {
+                        lastFields = [];
+                    }
+                    else {
+                        ShowLastFields(lastFields);
+                        $('#Model option').remove();
+                        $.get('/lookup/models/' + types[lastFields[0].ManufacturerSelectedIndex], function (resp) {
+                            for (var i = 0; i < resp.length; i++) {
+                                $('<option></option>').text(resp[i]).appendTo($('#Model'));
+                            }
+                            $('#Model').prop('selectedIndex', lastFields[0].ModelSelectedIndex);
+                        });
+
+                    }
+
+                });
+            });
+
+            //When manufactor select has changed the model select will get model names related to the manufactor name.
+            select.change(function (evt) {
+                var manufacturer = types[evt.currentTarget.selectedIndex];
+                $('#Model option').remove();
+                $.get('/lookup/models/' + manufacturer, function (resp) {
+                    for (var i = 0; i < resp.length; i++) {
+                        $('<option></option>').text(resp[i]).appendTo(modelSelect);
+                    }
+                });
+
+            });
+
+            //Saving the search fields values in local storage.
+            $('#SearchButton').click(function () {
+                var LastHistoryFields = {};
+                LastHistoryFields.ManufacturerSelectedIndex = $('#Manufactor').prop('selectedIndex');
+                LastHistoryFields.ModelSelectedIndex = $('#Model').prop('selectedIndex');
+                LastHistoryFields.GearSelectedIndex = $('#Gear').prop('selectedIndex');
+                LastHistoryFields.FreeText = $('#FreeText').val();
+                LastHistoryFields.StartDate = $('#StartDate').val();
+                LastHistoryFields.EndDate = $('#EndDate').val();
+
+                lastFields.pop();
+                lastFields.push(LastHistoryFields);
+                localStorage.setItem('lastFields', JSON.stringify(lastFields));
+            });
+
+            //Set name and value in the button that was clicked in order to submit with this value.
+            $('.CalculateButton').click(function setNameAndValue() {
+                var carNumber = $(this).parent().siblings().first().text();
+                $(this).attr({
+                    name: "carNumber",
+                    value: carNumber
+                });
+
+            });
+        });
+    </script>
+}
+<h2>@ViewBag.Title</h2>
+@using (Html.BeginForm("CarSearch", "Home", FormMethod.Post))
+{
+    <div class="col-sm-2">
+        <label for="Manufactor">יצרן</label>
+        <select class="form-control" name="Manufacturer" id="Manufactor"></select>
+    </div>
+    <div class="col-sm-2">
+        <label for="Model">דגם</label>
+        <select class="form-control" name="Model" id="Model"></select>
+    </div>
+    <div class="col-sm-2">
+        <label for="Gear">גיר</label>
+        <select name="GearType" id="Gear" class="form-control">
+            <option value="0">ידני</option>
+            <option value="1">אוטומט</option>
+        </select>
+    </div>
+    <div class="col-sm-2">
+        <label for="FreeText">טקסט חופשי</label>
+        <input type="text" class="form-control" name="FreeText" id="FreeText" placeholder="טקסט חופשי" />
+    </div>
+    <div class="col-sm-4">
+        <label for="Date">טווח תאריכים להשכרה</label>
+        <p>
+            <input type="date" id="StartDate" name="LeaseTimeFrom" />
+            עד
+            <input type="date" id="EndDate" name="LeaseTimeTo" />
+        </p>
+    </div>
+    <button id="SearchButton" type="submit" class="btn btn-default">חפש</button>
+
+
+}
+
+
+@if (Model != null)
+{
+    if (Model.Count() == 0)
+    {
+        <p>לא נמצאו תוצאות עבור חיפושך</p>
+    }
+    else
+    {
+        <div>
+            <table id="SearchResults" class="table">
+                <thead>
+                    <tr>
+                        <th>מספר רכב</th>
+                        <th>כתובת</th>
+                        <th>שם סניף</th>
+                        <th>יצרן</th>
+                        <th>דגם</th>
+                        <th>גיר</th>
+                        <th>קילומטרז' נוכחי</th>
+                        <th>עלות יומית</th>
+                        <th>עלות יום איחור</th>
+                        <th>תמונה</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @using (Html.BeginForm("RentalCalculator", "Home", FormMethod.Post))
+                    {
+                        foreach (Car car in Model)
+                        {
+                            <tr>
+                                <td>@car.CarNumber</td>
+                                <td>
+                                    @car.Branch.Address
+                                </td>
+                                <td>
+                                    @car.Branch.Name
+                                </td>
+                                <td>
+                                    @car.CarType.Manufacturer
+                                </td>
+                                <td>
+                                    @car.CarType.Model
+                                </td>
+                                <td>
+                                    @car.CarType.Gear
+                                </td>
+                                <td>
+                                    @car.CurrentMileage
+                                </td>
+                                <td>
+                                    @car.CarType.DailyCost
+                                </td>
+                                <td>
+                                    @car.CostOfDayDelay
+                                </td>
+                                <td>
+                                    @Html.Action("GetImageForCar","Admin", new { id = car.Id })
+                                </td>
+                                <td>
+                                    <button type="submit" class="btn btn-default CalculateButton">חשב עלות השכרה</button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+            <p class="hidden" id="DateRange"></p>
+        </div>
+    }
+}
+
+<div id="HistoryCarSearch" class="hidden table">
+    <p>היסטוריית חיפוש משתמש</p>
+    <table id="HistoryTable" class="table">
+        <thead>
+            <tr>
+                <th>מספר רכב</th>
+                <th>כתובת</th>
+                <th>שם סניף</th>
+                <th>יצרן</th>
+                <th>דגם</th>
+                <th>גיר</th>
+                <th>קילומטרז' נוכחי</th>
+                <th>עלות יומית</th>
+                <th>עלות יום איחור</th>
+            </tr>
+        </thead>
+
+    </table>
+</div>
+
+
+
